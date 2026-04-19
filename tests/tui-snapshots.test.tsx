@@ -8,6 +8,7 @@ import { ErrorBanner } from '../src/tui/ErrorBanner.js';
 import { DefaultMode } from '../src/tui/DefaultMode.js';
 import type { TransactionRow } from '../src/db/transactions.js';
 import type { HistoryRow } from '../src/db/history.js';
+import type { CategoryRow } from '../src/db/categories.js';
 
 const tx: TransactionRow = {
   id: 'tx1',
@@ -28,6 +29,11 @@ const tx: TransactionRow = {
 const history: HistoryRow[] = [
   { payee_id: 'p1', category_id: 'c1', count: 26, last_used: '2026-04-01' },
   { payee_id: 'p1', category_id: 'c2', count: 11, last_used: '2026-03-01' },
+];
+
+const categories: CategoryRow[] = [
+  { id: 'c1', name: 'Groceries', group_name: 'Food', hidden: 0, deleted: 0 },
+  { id: 'c2', name: 'Household', group_name: 'Home', hidden: 0, deleted: 0 },
 ];
 
 describe('TUI snapshots', () => {
@@ -64,6 +70,7 @@ describe('TUI snapshots', () => {
       React.createElement(DefaultMode, {
         transaction: tx,
         history,
+        categories,
         suggestedCategoryName: 'Groceries',
         writeStatus: 'idle',
       })
@@ -71,6 +78,7 @@ describe('TUI snapshots', () => {
     expect(lastFrame()).toContain('TARGET');
     expect(lastFrame()).toContain('-$84.22');
     expect(lastFrame()).toContain('Suggested');
+    expect(lastFrame()).toContain('Groceries');
   });
 
   it('DefaultMode renders no-history message when history is empty', () => {
@@ -78,6 +86,7 @@ describe('TUI snapshots', () => {
       React.createElement(DefaultMode, {
         transaction: tx,
         history: [],
+        categories,
         suggestedCategoryName: null,
         writeStatus: 'idle',
       })
