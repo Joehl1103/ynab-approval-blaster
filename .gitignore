@@ -5,3 +5,6 @@ dist/
 *.csv
 *.xlsx
 .worktrees/
+.claude/
+.remember/
+.serena/
