@@ -19,6 +19,10 @@
   "dependencies": {
     "better-sqlite3": "^12.9.0",
     "commander": "^14.0.3",
+    "ink": "^7.0.1",
+    "ink-select-input": "^6.2.0",
+    "ink-spinner": "^5.0.0",
+    "ink-text-input": "^6.0.0",
     "js-yaml": "^4.1.1",
     "ynab": "^4.1.0"
   },
@@ -26,6 +30,9 @@
     "@types/better-sqlite3": "^7.6.13",
     "@types/js-yaml": "^4.0.9",
     "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
+    "ink-testing-library": "^4.0.0",
+    "react": "^19.2.5",
     "tsx": "^4.21.0",
     "typescript": "^6.0.3",
     "vitest": "^4.1.4"
