@@ -3,21 +3,24 @@ import { Box, Text } from 'ink';
 import { formatMilliunits } from '../format.js';
 import type { TransactionRow } from '../db/transactions.js';
 import type { HistoryRow } from '../db/history.js';
+import type { CategoryRow } from '../db/categories.js';
 import type { WriteStatus } from './reducer.js';
 
 interface Props {
   transaction: TransactionRow;
   history: HistoryRow[];
+  categories: CategoryRow[];
   suggestedCategoryName: string | null;
   writeStatus: WriteStatus;
 }
 
 // Main transaction view shown in default mode.
 // Displays transaction details, payee history, suggested category, and keybind hints.
-export function DefaultMode({ transaction, history, suggestedCategoryName, writeStatus }: Props) {
+export function DefaultMode({ transaction, history, categories, suggestedCategoryName, writeStatus }: Props) {
   const amount = formatMilliunits(transaction.amount);
   const isInflow = transaction.amount > 0;
   const totalHistory = history.reduce((sum, h) => sum + h.count, 0);
+  const categoryName = (id: string) => categories.find((c) => c.id === id)?.name ?? id;
 
   return (
     <Box flexDirection="column">
@@ -38,7 +41,7 @@ export function DefaultMode({ transaction, history, suggestedCategoryName, write
               const pct = Math.round((h.count / totalHistory) * 100);
               return (
                 <Text key={h.category_id}>
-                  {'  '}{h.category_id.padEnd(20)} {String(pct).padStart(3)}%  ({h.count})
+                  {'  '}{categoryName(h.category_id).padEnd(30)} {String(pct).padStart(3)}%  ({h.count})
                 </Text>
               );
             })}
