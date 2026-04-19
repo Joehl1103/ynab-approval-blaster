@@ -1,0 +1,32 @@
+{
+  "name": "ynab-blaster",
+  "version": "0.1.0",
+  "description": "Rip through YNAB unapproved transactions with single keystrokes",
+  "type": "module",
+  "bin": {
+    "ynab-blaster": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [],
+  "author": "Joseph Loomis",
+  "license": "ISC",
+  "dependencies": {
+    "better-sqlite3": "^12.9.0",
+    "commander": "^14.0.3",
+    "js-yaml": "^4.1.1",
+    "ynab": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^25.6.0",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.4"
+  }
+}
