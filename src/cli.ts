@@ -32,4 +32,12 @@ program
     runStatus();
   });
 
+program
+  .command('retry-inflight')
+  .description('Force-retry any writes that did not confirm in a prior session')
+  .action(async () => {
+    const { runRetryInflight } = await import('./commands/retry-inflight.js');
+    await runRetryInflight();
+  });
+
 program.parse(process.argv);
