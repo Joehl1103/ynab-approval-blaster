@@ -62,7 +62,7 @@ export class WriteManager {
 
     try {
       await this.api.transactions.updateTransaction(this.budgetId, transactionId, {
-        transaction: { approved: true, category_id: categoryId },
+        transaction: { approved: true, category_id: categoryId } as unknown as ynab.ExistingTransaction,
       });
       deleteInflight(this.db, inflightId);
     } catch (err) {
@@ -102,7 +102,7 @@ export class WriteManager {
 
     try {
       await this.api.transactions.updateTransaction(this.budgetId, transactionId, {
-        transaction: { category_id: categoryId },
+        transaction: { category_id: categoryId } as unknown as ynab.ExistingTransaction,
       });
       deleteInflight(this.db, inflightId);
     } catch (err) {
@@ -133,7 +133,7 @@ export class WriteManager {
 
     try {
       await this.api.transactions.updateTransaction(this.budgetId, transactionId, {
-        transaction: { memo },
+        transaction: { memo } as unknown as ynab.ExistingTransaction,
       });
       deleteInflight(this.db, inflightId);
     } catch (err) {
@@ -164,7 +164,7 @@ export class WriteManager {
 
     try {
       await this.api.transactions.updateTransaction(this.budgetId, transactionId, {
-        transaction: { flag_color: 'purple' as ynab.TransactionDetail.FlagColorEnum },
+        transaction: { flag_color: 'purple' } as unknown as ynab.ExistingTransaction,
       });
       deleteInflight(this.db, inflightId);
     } catch (err) {
