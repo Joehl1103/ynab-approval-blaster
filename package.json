@@ -9,6 +9,7 @@
   "scripts": {
     "build": "tsc",
     "postbuild": "chmod +x dist/cli.js",
+    "install-local": "npm run build && npm link",
     "dev": "tsx src/cli.ts",
     "test": "vitest run",
     "test:watch": "vitest"

@@ -1,5 +1,5 @@
 import React, { useReducer, useEffect } from 'react';
-import { Box, useInput, useApp } from 'ink';
+import { Box, Text, useInput, useApp } from 'ink';
 import type Database from 'better-sqlite3';
 import type * as ynab from 'ynab';
 import type { Config } from '../config.js';
@@ -93,11 +93,11 @@ export function App({ db, api, config }: Props) {
   };
 
   if (state.queue.length === 0) {
-    return <Box><Box>No unapproved transactions. You're all caught up.</Box></Box>;
+    return <Box><Text>No unapproved transactions. You're all caught up.</Text></Box>;
   }
 
   if (!currentTx) {
-    return <Box><Box>Queue complete.</Box></Box>;
+    return <Box><Text>Queue complete.</Text></Box>;
   }
 
   return (
@@ -113,6 +113,7 @@ export function App({ db, api, config }: Props) {
         <DefaultMode
           transaction={currentTx}
           history={payeeHistory}
+          categories={categories}
           suggestedCategoryName={suggestedCategory?.name ?? null}
           writeStatus={state.writeStatus}
         />
