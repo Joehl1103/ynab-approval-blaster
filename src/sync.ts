@@ -39,6 +39,7 @@ export async function syncFromYnab(
       group_name: group.name,
       hidden: cat.hidden ? 1 : 0,
       deleted: cat.deleted ? 1 : 0,
+      balance: cat.balance ?? 0,
     }))
   );
 

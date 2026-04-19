@@ -13,7 +13,8 @@ export function applySchema(db: Database.Database): void {
       name TEXT NOT NULL,
       group_name TEXT,
       hidden INTEGER DEFAULT 0,
-      deleted INTEGER DEFAULT 0
+      deleted INTEGER DEFAULT 0,
+      balance INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE IF NOT EXISTS payees (
@@ -57,4 +58,10 @@ export function applySchema(db: Database.Database): void {
       created_at TEXT NOT NULL
     );
   `);
+
+  // Migrate pre-existing DBs that were created before the `balance` column existed.
+  const columns = db.prepare(`PRAGMA table_info(categories)`).all() as { name: string }[];
+  if (!columns.some((c) => c.name === 'balance')) {
+    db.exec(`ALTER TABLE categories ADD COLUMN balance INTEGER NOT NULL DEFAULT 0`);
+  }
 }
