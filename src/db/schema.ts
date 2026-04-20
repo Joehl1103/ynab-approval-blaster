@@ -57,6 +57,18 @@ export function applySchema(db: Database.Database): void {
       payload TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
+
+    CREATE TABLE IF NOT EXISTS receipt_codes (
+      store_name TEXT NOT NULL,
+      code TEXT NOT NULL,
+      description TEXT,
+      suggested_category_id TEXT,
+      times_seen INTEGER NOT NULL DEFAULT 1,
+      first_seen TEXT NOT NULL,
+      last_seen TEXT NOT NULL,
+      PRIMARY KEY (store_name, code)
+    );
+    CREATE INDEX IF NOT EXISTS idx_codes_store ON receipt_codes(store_name);
   `);
 
   // Migrate pre-existing DBs that were created before the `balance` column existed.
