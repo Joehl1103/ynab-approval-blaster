@@ -40,6 +40,26 @@ program
     await runRetryInflight();
   });
 
+const codesCmd = program
+  .command('codes')
+  .description('Manage the receipt-code dictionary');
+
+codesCmd
+  .command('list <store>')
+  .description('List all dictionary entries for a store')
+  .action(async (store: string) => {
+    const { runCodesList } = await import('./commands/codes.js');
+    runCodesList(store);
+  });
+
+codesCmd
+  .command('edit')
+  .description('Open the full dictionary in $EDITOR (YAML round-trip)')
+  .action(async () => {
+    const { runCodesEdit } = await import('./commands/codes.js');
+    runCodesEdit();
+  });
+
 // Default command (no subcommand) — runs the TUI blaster.
 program
   .command('run', { isDefault: true, hidden: true })
