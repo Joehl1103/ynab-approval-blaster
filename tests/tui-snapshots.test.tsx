@@ -6,9 +6,10 @@ import { Footer } from '../src/tui/Footer.js';
 import { WriteStatus } from '../src/tui/WriteStatus.js';
 import { ErrorBanner } from '../src/tui/ErrorBanner.js';
 import { DefaultMode } from '../src/tui/DefaultMode.js';
+import { CategoryPicker } from '../src/tui/CategoryPicker.js';
 import type { TransactionRow } from '../src/db/transactions.js';
 import type { HistoryRow } from '../src/db/history.js';
-import type { CategoryRow } from '../src/db/categories.js';
+import type { CategoryGroup, CategoryRow } from '../src/db/categories.js';
 
 const tx: TransactionRow = {
   id: 'tx1',
@@ -32,8 +33,13 @@ const history: HistoryRow[] = [
 ];
 
 const categories: CategoryRow[] = [
-  { id: 'c1', name: 'Groceries', group_name: 'Food', hidden: 0, deleted: 0 },
-  { id: 'c2', name: 'Household', group_name: 'Home', hidden: 0, deleted: 0 },
+  { id: 'c1', name: 'Groceries', group_name: 'Food', hidden: 0, deleted: 0, balance: 245000 },
+  { id: 'c2', name: 'Household', group_name: 'Home', hidden: 0, deleted: 0, balance: -1500 },
+];
+
+const groups: CategoryGroup[] = [
+  { group: 'Food', categories: [categories[0]!] },
+  { group: 'Home', categories: [categories[1]!] },
 ];
 
 describe('TUI snapshots', () => {
@@ -92,5 +98,33 @@ describe('TUI snapshots', () => {
       })
     );
     expect(lastFrame()).toContain('no prior approvals');
+  });
+
+  it('CategoryPicker renders grouped categories with color-coded balances', () => {
+    const { lastFrame } = render(
+      React.createElement(CategoryPicker, {
+        groups,
+        onSelect: () => {},
+        onCancel: () => {},
+      })
+    );
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain('Food');
+    expect(frame).toContain('Home');
+    expect(frame).toContain('Groceries');
+    expect(frame).toContain('Household');
+    expect(frame).toContain('$245.00');
+    expect(frame).toContain('$1.50');
+  });
+
+  it('CategoryPicker shows empty-state message when no groups are provided', () => {
+    const { lastFrame } = render(
+      React.createElement(CategoryPicker, {
+        groups: [],
+        onSelect: () => {},
+        onCancel: () => {},
+      })
+    );
+    expect(lastFrame()).toContain('No matching categories');
   });
 });
