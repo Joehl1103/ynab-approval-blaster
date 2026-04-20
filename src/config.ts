@@ -10,6 +10,8 @@ export interface Config {
   db_path: string;
   include_hidden_categories: boolean;
   sort: SortOrder;
+  // Optional — required only for the LLM receipt-code lookup fallback.
+  anthropic_api_key: string | undefined;
 }
 
 const VALID_SORTS: SortOrder[] = ['date_desc', 'date_asc', 'account'];
@@ -31,12 +33,19 @@ export function parseConfig(raw: Record<string, unknown>): Config {
   if (!VALID_SORTS.includes(sort)) {
     throw new Error(`Config error: sort must be one of ${VALID_SORTS.join(', ')}`);
   }
+  // anthropic_api_key: prefer YAML, fall back to env var, allow absent.
+  const anthropic_api_key =
+    (typeof raw.anthropic_api_key === 'string' && raw.anthropic_api_key)
+      ? raw.anthropic_api_key
+      : (process.env.ANTHROPIC_API_KEY ?? undefined);
+
   return {
     personal_access_token: raw.personal_access_token,
     budget_id: raw.budget_id,
     db_path: (raw.db_path as string).replace('~', homedir()),
     include_hidden_categories: (raw.include_hidden_categories as boolean) ?? false,
     sort,
+    anthropic_api_key,
   };
 }
 

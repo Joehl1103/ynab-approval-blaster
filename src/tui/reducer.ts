@@ -1,6 +1,6 @@
 import type { TransactionRow } from '../db/transactions.js';
 
-export type Mode = 'default' | 'picker' | 'memo';
+export type Mode = 'default' | 'picker' | 'memo' | 'lookup';
 export type WriteStatus = 'idle' | 'saving' | 'saved' | 'failed';
 
 export interface AppState {
