@@ -52,27 +52,42 @@ describe('getCategories', () => {
 });
 
 describe('balance column migration', () => {
-  it('clears server_knowledge so the next sync is a full re-fetch', () => {
-    // Simulate a pre-existing DB that has a stored server_knowledge but no balance column.
-    // We do this by creating a DB with the OLD schema (no balance), setting knowledge, then applying the new schema.
+  it('clears server_knowledge on the first applySchema and records a backfill flag', () => {
+    // Simulate a pre-existing DB with the OLD categories schema (no balance column) and a
+    // stored server_knowledge from a previous delta sync.
     const oldDb = openDatabase(':memory:');
-    // Create the categories table without the balance column
     oldDb.exec(`
       CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
       CREATE TABLE categories (id TEXT PRIMARY KEY, name TEXT NOT NULL, group_name TEXT, hidden INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0);
     `);
     setMeta(oldDb, 'server_knowledge', '42');
 
-    // Now apply the new schema — migration should add the column and clear server_knowledge
     applySchema(oldDb);
 
     expect(getMeta(oldDb, 'server_knowledge')).toBeUndefined();
+    expect(getMeta(oldDb, 'balance_backfill_v1')).toBe('1');
   });
 
-  it('does NOT clear server_knowledge if balance column already exists', () => {
-    // Fresh DB via applySchema already has balance column; server_knowledge should be untouched
+  it('clears server_knowledge even when the balance column already exists (v1 migration already ran)', () => {
+    // Simulate a user who ran the buggy v1 migration: balance column present, but
+    // server_knowledge was never cleared and no backfill flag was set.
+    const oldDb = openDatabase(':memory:');
+    oldDb.exec(`
+      CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
+      CREATE TABLE categories (id TEXT PRIMARY KEY, name TEXT NOT NULL, group_name TEXT, hidden INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0, balance INTEGER NOT NULL DEFAULT 0);
+    `);
+    setMeta(oldDb, 'server_knowledge', '42');
+
+    applySchema(oldDb);
+
+    expect(getMeta(oldDb, 'server_knowledge')).toBeUndefined();
+    expect(getMeta(oldDb, 'balance_backfill_v1')).toBe('1');
+  });
+
+  it('does NOT clear server_knowledge on subsequent applySchema calls', () => {
+    // db was already migrated in beforeEach, so the flag is set.
     setMeta(db, 'server_knowledge', '99');
-    applySchema(db); // re-run on already-migrated DB
+    applySchema(db);
     expect(getMeta(db, 'server_knowledge')).toBe('99');
   });
 });

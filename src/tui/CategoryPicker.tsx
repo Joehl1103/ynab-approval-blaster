@@ -74,7 +74,12 @@ export function CategoryPicker({ groups, onSelect, onCancel }: Props) {
       ) : (
         filtered.map((g) => (
           <Box key={g.group} flexDirection="column" marginTop={1}>
-            <Text bold color="cyan">{g.group}</Text>
+            <Box>
+              <Box width={NAME_WIDTH + 3} flexShrink={0}>
+                <Text bold color="cyan">{g.group}</Text>
+              </Box>
+              <Text dimColor>Available (this month)</Text>
+            </Box>
             {g.categories.map((c) => {
               const isActive = flatIndex === cursor;
               flatIndex += 1;
