@@ -47,13 +47,16 @@ export function getCategories(
 // Preserving array order defines the pin order.
 const PINNED_GROUPS: string[] = ['Internal Master Category'];
 
-// Returns visible (non-hidden, non-deleted) categories grouped by group_name.
-// `null` groups fall under the literal "Uncategorized" bucket. The picker view
-// always hides hidden categories regardless of config. Pinned groups (see
+// Returns non-deleted categories grouped by group_name, honoring the caller's
+// includeHidden choice (driven by config.include_hidden_categories). `null`
+// groups fall under the literal "Uncategorized" bucket. Pinned groups (see
 // PINNED_GROUPS) are moved to the top, preserving their relative pin order;
 // remaining groups keep the alphabetical order from getCategories().
-export function getVisibleCategoriesGrouped(db: Database.Database): CategoryGroup[] {
-  const rows = getCategories(db, false);
+export function getCategoriesGrouped(
+  db: Database.Database,
+  includeHidden: boolean
+): CategoryGroup[] {
+  const rows = getCategories(db, includeHidden);
   const byGroup = new Map<string, CategoryRow[]>();
   for (const row of rows) {
     const key = row.group_name ?? 'Uncategorized';

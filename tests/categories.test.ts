@@ -4,7 +4,7 @@ import { applySchema } from '../src/db/schema.js';
 import { getMeta, setMeta } from '../src/db/meta.js';
 import {
   getCategories,
-  getVisibleCategoriesGrouped,
+  getCategoriesGrouped,
   upsertCategories,
   type CategoryRow,
 } from '../src/db/categories.js';
@@ -92,21 +92,29 @@ describe('balance column migration', () => {
   });
 });
 
-describe('getVisibleCategoriesGrouped', () => {
-  it('always hides hidden categories regardless of config', () => {
-    const groups = getVisibleCategoriesGrouped(db);
+describe('getCategoriesGrouped', () => {
+  it('hides hidden categories when includeHidden=false', () => {
+    const groups = getCategoriesGrouped(db, false);
     const allIds = groups.flatMap((g) => g.categories.map((c) => c.id));
     expect(allIds).not.toContain('c4');
   });
 
+  it('includes hidden categories when includeHidden=true', () => {
+    const groups = getCategoriesGrouped(db, true);
+    const allIds = groups.flatMap((g) => g.categories.map((c) => c.id));
+    expect(allIds).toContain('c4');
+    // Deleted rows are still excluded regardless of includeHidden.
+    expect(allIds).not.toContain('c5');
+  });
+
   it('buckets null group_name under "Uncategorized"', () => {
-    const groups = getVisibleCategoriesGrouped(db);
+    const groups = getCategoriesGrouped(db, false);
     const uncategorized = groups.find((g) => g.group === 'Uncategorized');
     expect(uncategorized?.categories.map((c) => c.id)).toEqual(['c6']);
   });
 
   it('groups categories by group_name and preserves sort within group', () => {
-    const groups = getVisibleCategoriesGrouped(db);
+    const groups = getCategoriesGrouped(db, false);
     const food = groups.find((g) => g.group === 'Food');
     expect(food?.categories.map((c) => c.name)).toEqual(['Dining Out', 'Groceries']);
   });
@@ -122,7 +130,7 @@ describe('getVisibleCategoriesGrouped', () => {
         balance: 28221030,
       },
     ]);
-    const groups = getVisibleCategoriesGrouped(db);
+    const groups = getCategoriesGrouped(db, false);
     expect(groups[0]?.group).toBe('Internal Master Category');
     expect(groups[0]?.categories.map((c) => c.name)).toContain('Inflow: Ready to Assign');
   });

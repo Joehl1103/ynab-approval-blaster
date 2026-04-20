@@ -13,7 +13,7 @@ import { ErrorBanner } from './ErrorBanner.js';
 import { WriteStatus } from './WriteStatus.js';
 import { WriteManager } from '../write-manager.js';
 import { getUnapprovedTransactions } from '../db/transactions.js';
-import { getCategories, getVisibleCategoriesGrouped } from '../db/categories.js';
+import { getCategories, getCategoriesGrouped } from '../db/categories.js';
 import { getPayeeHistory } from '../db/history.js';
 
 interface Props {
@@ -30,7 +30,7 @@ export function App({ db, api, config }: Props) {
 
   const manager = new WriteManager(db, api, config.budget_id);
   const categories = getCategories(db, config.include_hidden_categories);
-  const categoryGroups = getVisibleCategoriesGrouped(db);
+  const categoryGroups = getCategoriesGrouped(db, config.include_hidden_categories);
 
   // Load unapproved queue on mount.
   useEffect(() => {
