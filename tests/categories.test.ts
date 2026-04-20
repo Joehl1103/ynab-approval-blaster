@@ -110,4 +110,20 @@ describe('getVisibleCategoriesGrouped', () => {
     const food = groups.find((g) => g.group === 'Food');
     expect(food?.categories.map((c) => c.name)).toEqual(['Dining Out', 'Groceries']);
   });
+
+  it('pins "Internal Master Category" to the top of the group list', () => {
+    upsertCategories(db, [
+      {
+        id: 'i1',
+        name: 'Inflow: Ready to Assign',
+        group_name: 'Internal Master Category',
+        hidden: 0,
+        deleted: 0,
+        balance: 28221030,
+      },
+    ]);
+    const groups = getVisibleCategoriesGrouped(db);
+    expect(groups[0]?.group).toBe('Internal Master Category');
+    expect(groups[0]?.categories.map((c) => c.name)).toContain('Inflow: Ready to Assign');
+  });
 });

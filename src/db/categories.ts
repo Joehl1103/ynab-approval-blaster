@@ -42,9 +42,16 @@ export function getCategories(
   return db.prepare(sql).all() as CategoryRow[];
 }
 
+// Group names that YNAB treats as system/internal and that we pin to the top
+// of the picker so they appear in the same position as in the YNAB web UI.
+// Preserving array order defines the pin order.
+const PINNED_GROUPS: string[] = ['Internal Master Category'];
+
 // Returns visible (non-hidden, non-deleted) categories grouped by group_name.
 // `null` groups fall under the literal "Uncategorized" bucket. The picker view
-// always hides hidden categories regardless of config.
+// always hides hidden categories regardless of config. Pinned groups (see
+// PINNED_GROUPS) are moved to the top, preserving their relative pin order;
+// remaining groups keep the alphabetical order from getCategories().
 export function getVisibleCategoriesGrouped(db: Database.Database): CategoryGroup[] {
   const rows = getCategories(db, false);
   const byGroup = new Map<string, CategoryRow[]>();
@@ -54,5 +61,15 @@ export function getVisibleCategoriesGrouped(db: Database.Database): CategoryGrou
     if (bucket) bucket.push(row);
     else byGroup.set(key, [row]);
   }
-  return Array.from(byGroup.entries()).map(([group, categories]) => ({ group, categories }));
+  const pinned: CategoryGroup[] = [];
+  const rest: CategoryGroup[] = [];
+  for (const [group, categories] of byGroup.entries()) {
+    const entry = { group, categories };
+    if (PINNED_GROUPS.includes(group)) pinned.push(entry);
+    else rest.push(entry);
+  }
+  pinned.sort(
+    (a, b) => PINNED_GROUPS.indexOf(a.group) - PINNED_GROUPS.indexOf(b.group)
+  );
+  return [...pinned, ...rest];
 }
