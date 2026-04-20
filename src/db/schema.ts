@@ -60,8 +60,11 @@ export function applySchema(db: Database.Database): void {
   `);
 
   // Migrate pre-existing DBs that were created before the `balance` column existed.
+  // Clear server_knowledge so the next sync is a full re-fetch — delta sync alone
+  // would leave the DEFAULT 0 balance untouched for unchanged categories.
   const columns = db.prepare(`PRAGMA table_info(categories)`).all() as { name: string }[];
   if (!columns.some((c) => c.name === 'balance')) {
     db.exec(`ALTER TABLE categories ADD COLUMN balance INTEGER NOT NULL DEFAULT 0`);
+    db.prepare(`DELETE FROM meta WHERE key = 'server_knowledge'`).run();
   }
 }

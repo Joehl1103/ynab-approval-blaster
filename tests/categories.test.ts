@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { openDatabase } from '../src/db/client.js';
 import { applySchema } from '../src/db/schema.js';
+import { getMeta, setMeta } from '../src/db/meta.js';
 import {
   getCategories,
   getVisibleCategoriesGrouped,
@@ -47,6 +48,32 @@ describe('getCategories', () => {
     const result = getCategories(db, false);
     const groceries = result.find((r) => r.id === 'c1');
     expect(groceries?.balance).toBe(120000);
+  });
+});
+
+describe('balance column migration', () => {
+  it('clears server_knowledge so the next sync is a full re-fetch', () => {
+    // Simulate a pre-existing DB that has a stored server_knowledge but no balance column.
+    // We do this by creating a DB with the OLD schema (no balance), setting knowledge, then applying the new schema.
+    const oldDb = openDatabase(':memory:');
+    // Create the categories table without the balance column
+    oldDb.exec(`
+      CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT);
+      CREATE TABLE categories (id TEXT PRIMARY KEY, name TEXT NOT NULL, group_name TEXT, hidden INTEGER DEFAULT 0, deleted INTEGER DEFAULT 0);
+    `);
+    setMeta(oldDb, 'server_knowledge', '42');
+
+    // Now apply the new schema — migration should add the column and clear server_knowledge
+    applySchema(oldDb);
+
+    expect(getMeta(oldDb, 'server_knowledge')).toBeUndefined();
+  });
+
+  it('does NOT clear server_knowledge if balance column already exists', () => {
+    // Fresh DB via applySchema already has balance column; server_knowledge should be untouched
+    setMeta(db, 'server_knowledge', '99');
+    applySchema(db); // re-run on already-migrated DB
+    expect(getMeta(db, 'server_knowledge')).toBe('99');
   });
 });
 
