@@ -9,6 +9,7 @@ import { Footer } from './Footer.js';
 import { DefaultMode } from './DefaultMode.js';
 import { CategoryPicker } from './CategoryPicker.js';
 import { MemoEditor } from './MemoEditor.js';
+import { CodeLookup } from './CodeLookup.js';
 import { ErrorBanner } from './ErrorBanner.js';
 import { WriteStatus } from './WriteStatus.js';
 import { WriteManager } from '../write-manager.js';
@@ -74,6 +75,7 @@ export function App({ db, api, config }: Props) {
       fireWrite(() => manager.approve(currentTx.id, suggestedCategory.id));
     }
     if (input === 'c') dispatch({ type: 'SET_MODE', mode: 'picker' });
+    if (input === 'l') dispatch({ type: 'SET_MODE', mode: 'lookup' });
     if (input === 'n') dispatch({ type: 'NEXT' });
     if (input === 's') dispatch({ type: 'NEXT' });
     if (input === 'x') fireWrite(() => manager.flagForSplit(currentTx.id));
@@ -91,6 +93,17 @@ export function App({ db, api, config }: Props) {
     if (!currentTx) return;
     dispatch({ type: 'SET_MODE', mode: 'default' });
     fireWrite(() => manager.editMemo(currentTx.id, memo));
+  };
+
+  // When the user applies a category found via the code lookup pane, treat it
+  // as a normal category-select approve (same as picking from CategoryPicker).
+  const handleLookupApplyCategory = (categoryId: string, _categoryName: string) => {
+    if (!currentTx) {
+      dispatch({ type: 'SET_MODE', mode: 'default' });
+      return;
+    }
+    dispatch({ type: 'SET_MODE', mode: 'default' });
+    fireWrite(() => manager.approve(currentTx.id, categoryId));
   };
 
   if (state.queue.length === 0) {
@@ -133,6 +146,17 @@ export function App({ db, api, config }: Props) {
           initialMemo={currentTx.memo ?? ''}
           onSubmit={handleMemoSubmit}
           onCancel={() => dispatch({ type: 'SET_MODE', mode: 'default' })}
+        />
+      )}
+
+      {state.mode === 'lookup' && (
+        <CodeLookup
+          db={db}
+          payeeName={currentTx.payee_name ?? null}
+          categoryGroups={categoryGroups}
+          anthropicApiKey={config.anthropic_api_key}
+          onApplyCategory={handleLookupApplyCategory}
+          onClose={() => dispatch({ type: 'SET_MODE', mode: 'default' })}
         />
       )}
 
