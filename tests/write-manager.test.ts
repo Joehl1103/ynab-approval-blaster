@@ -91,6 +91,86 @@ describe('WriteManager.approve', () => {
   });
 });
 
+describe('WriteManager.approveAsIs', () => {
+  it('marks transaction approved without touching category in SQLite', async () => {
+    const mockApi = {
+      transactions: {
+        updateTransaction: vi.fn().mockResolvedValue({}),
+      },
+    } as unknown as ynab.API;
+
+    const manager = new WriteManager(db, mockApi, 'budget-1');
+    await manager.approveAsIs('tx1');
+
+    const row = db
+      .prepare('SELECT approved, category_id, category_name FROM transactions WHERE id = ?')
+      .get('tx1') as { approved: number; category_id: string; category_name: string };
+    expect(row.approved).toBe(1);
+    expect(row.category_id).toBe('c1');
+    expect(row.category_name).toBe('Groceries');
+  });
+
+  it('sends only { approved: true } to YNAB (no category_id)', async () => {
+    const updateTransaction = vi.fn().mockResolvedValue({});
+    const mockApi = {
+      transactions: { updateTransaction },
+    } as unknown as ynab.API;
+
+    const manager = new WriteManager(db, mockApi, 'budget-1');
+    await manager.approveAsIs('tx1');
+
+    expect(updateTransaction).toHaveBeenCalledWith(
+      'budget-1',
+      'tx1',
+      { transaction: { approved: true } }
+    );
+  });
+
+  it('clears inflight row after successful API call', async () => {
+    const mockApi = {
+      transactions: {
+        updateTransaction: vi.fn().mockResolvedValue({}),
+      },
+    } as unknown as ynab.API;
+
+    const manager = new WriteManager(db, mockApi, 'budget-1');
+    await manager.approveAsIs('tx1');
+
+    expect(listInflight(db)).toHaveLength(0);
+  });
+
+  it('rolls back optimistic update on API failure', async () => {
+    const mockApi = {
+      transactions: {
+        updateTransaction: vi.fn().mockRejectedValue(new Error('Network error')),
+      },
+    } as unknown as ynab.API;
+
+    const manager = new WriteManager(db, mockApi, 'budget-1');
+    await expect(manager.approveAsIs('tx1')).rejects.toThrow('Network error');
+
+    const row = db
+      .prepare('SELECT approved FROM transactions WHERE id = ?')
+      .get('tx1') as { approved: number };
+    expect(row.approved).toBe(0);
+  });
+
+  it('leaves inflight row in place on API failure', async () => {
+    const mockApi = {
+      transactions: {
+        updateTransaction: vi.fn().mockRejectedValue(new Error('Network error')),
+      },
+    } as unknown as ynab.API;
+
+    const manager = new WriteManager(db, mockApi, 'budget-1');
+    await expect(manager.approveAsIs('tx1')).rejects.toThrow();
+
+    const inflight = listInflight(db);
+    expect(inflight).toHaveLength(1);
+    expect(inflight[0]!.change_type).toBe('approve_as_is');
+  });
+});
+
 describe('WriteManager.recategorize', () => {
   it('updates category_id and category_name optimistically', async () => {
     const mockApi = {
