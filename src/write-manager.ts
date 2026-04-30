@@ -9,6 +9,10 @@ interface ApprovePayload {
   category_id: string;
 }
 
+interface ApproveAsIsPayload {
+  prev_approved: number;
+}
+
 interface RecategorizePayload {
   prev_category_id: string | null;
   prev_category_name: string | null;
@@ -69,6 +73,39 @@ export class WriteManager {
       this.db
         .prepare('UPDATE transactions SET approved = ?, category_id = ? WHERE id = ?')
         .run(payload.prev_approved, payload.prev_category_id, transactionId);
+      throw err;
+    }
+  }
+
+  // Approves a transaction without touching its category. Used for transactions
+  // that already have the right category set (transfers, credit-card payments,
+  // scheduled transactions, etc.). Writes to YNAB immediately.
+  async approveAsIs(transactionId: string): Promise<void> {
+    const prev = this.db
+      .prepare('SELECT approved FROM transactions WHERE id = ?')
+      .get(transactionId) as { approved: number };
+
+    const payload: ApproveAsIsPayload = { prev_approved: prev.approved };
+
+    this.db
+      .prepare('UPDATE transactions SET approved = 1 WHERE id = ?')
+      .run(transactionId);
+
+    const inflightId = insertInflight(this.db, {
+      transaction_id: transactionId,
+      change_type: 'approve_as_is',
+      payload: JSON.stringify(payload),
+    });
+
+    try {
+      await this.api.transactions.updateTransaction(this.budgetId, transactionId, {
+        transaction: { approved: true } as unknown as ynab.ExistingTransaction,
+      });
+      deleteInflight(this.db, inflightId);
+    } catch (err) {
+      this.db
+        .prepare('UPDATE transactions SET approved = ? WHERE id = ?')
+        .run(payload.prev_approved, transactionId);
       throw err;
     }
   }

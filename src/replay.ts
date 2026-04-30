@@ -25,6 +25,8 @@ export async function replayInflightWrites(
     let patch: Record<string, unknown> = {};
     if (row.change_type === 'approve') {
       patch = { approved: true, category_id: payload.category_id };
+    } else if (row.change_type === 'approve_as_is') {
+      patch = { approved: true };
     } else if (row.change_type === 'recategorize') {
       patch = { category_id: payload.category_id };
     } else if (row.change_type === 'memo') {

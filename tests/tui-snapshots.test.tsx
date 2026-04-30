@@ -105,6 +105,67 @@ describe('TUI snapshots', () => {
     expect(lastFrame()).toContain('[w] wrong cat');
   });
 
+  it('DefaultMode shows the current category_name on the transaction', () => {
+    const { lastFrame } = render(
+      React.createElement(DefaultMode, {
+        transaction: tx,
+        history,
+        categories,
+        suggestedCategoryName: 'Groceries',
+        writeStatus: 'idle',
+      })
+    );
+    expect(lastFrame()).toContain('Category: Groceries');
+  });
+
+  it('DefaultMode shows "(none)" when category_name is missing', () => {
+    const txWithoutCategory: TransactionRow = { ...tx, category_id: null, category_name: null };
+    const { lastFrame } = render(
+      React.createElement(DefaultMode, {
+        transaction: txWithoutCategory,
+        history: [],
+        categories,
+        suggestedCategoryName: null,
+        writeStatus: 'idle',
+      })
+    );
+    expect(lastFrame()).toContain('Category: (none)');
+  });
+
+  it('DefaultMode advertises the [a] approve-as-is keybind with current category', () => {
+    const { lastFrame } = render(
+      React.createElement(DefaultMode, {
+        transaction: tx,
+        history,
+        categories,
+        suggestedCategoryName: 'Groceries',
+        writeStatus: 'idle',
+      })
+    );
+    expect(lastFrame()).toContain('[a] approve as-is');
+    expect(lastFrame()).toContain('Groceries');
+  });
+
+  it('DefaultMode still advertises [a] approve-as-is when category_id is null (e.g. transfers / CC payments)', () => {
+    const txWithoutCategory: TransactionRow = { ...tx, category_id: null, category_name: null };
+    const { lastFrame } = render(
+      React.createElement(DefaultMode, {
+        transaction: txWithoutCategory,
+        history: [],
+        categories,
+        suggestedCategoryName: null,
+        writeStatus: 'idle',
+      })
+    );
+    expect(lastFrame()).toContain('[a] approve as-is');
+    expect(lastFrame()).toContain('YNAB-handled');
+  });
+
+  it('Footer legend includes the [a] as-is keybind', () => {
+    const { lastFrame } = render(React.createElement(Footer));
+    expect(lastFrame()).toContain('[a] as-is');
+  });
+
   it('DefaultMode renders no-history message when history is empty', () => {
     const { lastFrame } = render(
       React.createElement(DefaultMode, {
