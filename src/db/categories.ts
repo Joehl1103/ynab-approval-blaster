@@ -42,6 +42,19 @@ export function getCategories(
   return db.prepare(sql).all() as CategoryRow[];
 }
 
+// Looks up a single non-deleted category by exact name. Includes hidden
+// categories so the lookup remains stable even if the user has hidden the
+// category in YNAB. Returns null when no match is found.
+export function getCategoryByName(
+  db: Database.Database,
+  name: string
+): CategoryRow | null {
+  const row = db
+    .prepare('SELECT * FROM categories WHERE name = ? AND deleted = 0 LIMIT 1')
+    .get(name) as CategoryRow | undefined;
+  return row ?? null;
+}
+
 // Group names that YNAB treats as system/internal and that we pin to the top
 // of the picker so they appear in the same position as in the YNAB web UI.
 // Preserving array order defines the pin order.

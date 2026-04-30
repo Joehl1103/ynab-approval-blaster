@@ -87,6 +87,24 @@ describe('TUI snapshots', () => {
     expect(lastFrame()).toContain('Groceries');
   });
 
+  it('DefaultMode advertises the [w] wrong-category keybind', () => {
+    const { lastFrame } = render(
+      React.createElement(DefaultMode, {
+        transaction: tx,
+        history,
+        categories,
+        suggestedCategoryName: 'Groceries',
+        writeStatus: 'idle',
+      })
+    );
+    expect(lastFrame()).toContain('[w] wrong category');
+  });
+
+  it('Footer legend includes the [w] wrong-category keybind', () => {
+    const { lastFrame } = render(React.createElement(Footer));
+    expect(lastFrame()).toContain('[w] wrong cat');
+  });
+
   it('DefaultMode renders no-history message when history is empty', () => {
     const { lastFrame } = render(
       React.createElement(DefaultMode, {

@@ -5,6 +5,7 @@ import { getMeta, setMeta } from '../src/db/meta.js';
 import {
   getCategories,
   getCategoriesGrouped,
+  getCategoryByName,
   upsertCategories,
   type CategoryRow,
 } from '../src/db/categories.js';
@@ -133,5 +134,42 @@ describe('getCategoriesGrouped', () => {
     const groups = getCategoriesGrouped(db, false);
     expect(groups[0]?.group).toBe('Internal Master Category');
     expect(groups[0]?.categories.map((c) => c.name)).toContain('Inflow: Ready to Assign');
+  });
+});
+
+describe('getCategoryByName', () => {
+  it('returns the matching non-deleted category by exact name', () => {
+    const result = getCategoryByName(db, 'Groceries');
+    expect(result?.id).toBe('c1');
+  });
+
+  it('finds hidden categories', () => {
+    const result = getCategoryByName(db, 'Secret Stash');
+    expect(result?.id).toBe('c4');
+  });
+
+  it('does not return deleted categories', () => {
+    const result = getCategoryByName(db, 'Old Thing');
+    expect(result).toBeNull();
+  });
+
+  it('returns null when no category matches', () => {
+    const result = getCategoryByName(db, 'No Such Category');
+    expect(result).toBeNull();
+  });
+
+  it('matches names containing emoji exactly', () => {
+    upsertCategories(db, [
+      {
+        id: 'wc',
+        name: '\u{1F4B5} Wrong Category',
+        group_name: 'Review',
+        hidden: 0,
+        deleted: 0,
+        balance: 0,
+      },
+    ]);
+    const result = getCategoryByName(db, '\u{1F4B5} Wrong Category');
+    expect(result?.id).toBe('wc');
   });
 });
