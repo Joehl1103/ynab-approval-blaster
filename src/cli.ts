@@ -40,6 +40,15 @@ program
     await runRetryInflight();
   });
 
+program
+  .command('amazon-sync')
+  .description('Sync Amazon order history (uses bootstrap window on first run)')
+  .option('--days <n>', 'Override sync window to the last N days', (v) => parseInt(v, 10))
+  .action(async (opts: { days?: number }) => {
+    const { runAmazonSyncCommand } = await import('./commands/amazon-sync.js');
+    await runAmazonSyncCommand(opts);
+  });
+
 // Default command (no subcommand) — runs the TUI blaster.
 program
   .command('run', { isDefault: true, hidden: true })

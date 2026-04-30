@@ -19,5 +19,17 @@ export function runStatus(): void {
   console.log(`Unapproved transactions: ${unapproved.length}`);
   console.log(`Inflight writes:         ${inflight.count}`);
   console.log(`Last synced:             ${lastSync}`);
+
+  if (config.amazon.enabled) {
+    const charges = db
+      .prepare('SELECT COUNT(*) as count FROM amazon_charges')
+      .get() as { count: number };
+    const lastAmazonSuccess = getMeta(db, 'amazon_last_success') ?? 'never';
+    const lastAmazonError = getMeta(db, 'amazon_last_error') ?? '';
+    console.log(`Amazon charges:          ${charges.count}`);
+    console.log(`Amazon last sync:        ${lastAmazonSuccess}`);
+    if (lastAmazonError) console.log(`Amazon last error:       ${lastAmazonError}`);
+  }
+
   db.close();
 }

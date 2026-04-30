@@ -15,6 +15,8 @@ import { WriteManager } from '../write-manager.js';
 import { getUnapprovedTransactions } from '../db/transactions.js';
 import { getCategories, getCategoriesGrouped, type CategoryRow } from '../db/categories.js';
 import { getPayeeHistory } from '../db/history.js';
+import { getMeta } from '../db/meta.js';
+import { findAmazonMatch } from '../amazon/match.js';
 
 // Hardcoded name of the YNAB category used by the `w` keybind to mark a
 // transaction as having an unknown / to-be-reviewed category. Resolved once
@@ -47,6 +49,19 @@ export function App({ db, api, config, wrongCategory }: Props) {
 
   const currentTx = state.queue[state.index];
   const payeeHistory = currentTx ? getPayeeHistory(db, currentTx.payee_id ?? '') : [];
+  const amazonMatch = currentTx ? findAmazonMatch(currentTx, db, config.amazon) : null;
+
+  // Compute Amazon staleness in hours, or null when feature is disabled / never run.
+  let amazonStaleHours: number | null = null;
+  if (config.amazon.enabled) {
+    const lastSuccess = getMeta(db, 'amazon_last_success');
+    if (lastSuccess) {
+      const ageHours = (Date.now() - new Date(lastSuccess).getTime()) / (60 * 60 * 1000);
+      if (ageHours >= config.amazon.stale_warning_hours) {
+        amazonStaleHours = ageHours;
+      }
+    }
+  }
 
   const suggestedCategory =
     payeeHistory.length > 0
@@ -111,7 +126,12 @@ export function App({ db, api, config, wrongCategory }: Props) {
 
   return (
     <Box flexDirection="column" padding={1}>
-      <Header current={state.index + 1} total={state.queue.length} syncing={false} />
+      <Header
+        current={state.index + 1}
+        total={state.queue.length}
+        syncing={false}
+        amazonStaleHours={amazonStaleHours}
+      />
 
       <ErrorBanner
         errors={state.errors}
@@ -125,6 +145,7 @@ export function App({ db, api, config, wrongCategory }: Props) {
           categories={categories}
           suggestedCategoryName={suggestedCategory?.name ?? null}
           writeStatus={state.writeStatus}
+          amazonMatch={amazonMatch}
         />
       )}
 

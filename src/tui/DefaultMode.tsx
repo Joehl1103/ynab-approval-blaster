@@ -5,6 +5,8 @@ import type { TransactionRow } from '../db/transactions.js';
 import type { HistoryRow } from '../db/history.js';
 import type { CategoryRow } from '../db/categories.js';
 import type { WriteStatus } from './reducer.js';
+import type { AmazonMatch } from '../amazon/types.js';
+import { AmazonOrderPanel } from './AmazonOrderPanel.js';
 
 interface Props {
   transaction: TransactionRow;
@@ -12,11 +14,12 @@ interface Props {
   categories: CategoryRow[];
   suggestedCategoryName: string | null;
   writeStatus: WriteStatus;
+  amazonMatch: AmazonMatch | null;
 }
 
 // Main transaction view shown in default mode.
 // Displays transaction details, payee history, suggested category, and keybind hints.
-export function DefaultMode({ transaction, history, categories, suggestedCategoryName, writeStatus }: Props) {
+export function DefaultMode({ transaction, history, categories, suggestedCategoryName, writeStatus, amazonMatch }: Props) {
   const amount = formatMilliunits(transaction.amount);
   const isInflow = transaction.amount > 0;
   const totalHistory = history.reduce((sum, h) => sum + h.count, 0);
@@ -50,6 +53,8 @@ export function DefaultMode({ transaction, history, categories, suggestedCategor
           <Text dimColor>History: (no prior approvals for this payee)</Text>
         )}
       </Box>
+
+      {amazonMatch && <AmazonOrderPanel match={amazonMatch} />}
 
       {suggestedCategoryName && !isInflow && (
         <Text>Suggested: <Text bold color="cyan">{suggestedCategoryName}</Text></Text>

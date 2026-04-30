@@ -4,12 +4,21 @@ import { load } from 'js-yaml';
 
 export type SortOrder = 'date_desc' | 'date_asc' | 'account';
 
+export interface AmazonConfig {
+  enabled: boolean;
+  match_window_days: number;
+  bootstrap_days: number;
+  payee_pattern: string;
+  stale_warning_hours: number;
+}
+
 export interface Config {
   personal_access_token: string;
   budget_id: string;
   db_path: string;
   include_hidden_categories: boolean;
   sort: SortOrder;
+  amazon: AmazonConfig;
 }
 
 const VALID_SORTS: SortOrder[] = ['date_desc', 'date_asc', 'account'];
@@ -31,12 +40,21 @@ export function parseConfig(raw: Record<string, unknown>): Config {
   if (!VALID_SORTS.includes(sort)) {
     throw new Error(`Config error: sort must be one of ${VALID_SORTS.join(', ')}`);
   }
+  const rawAmazon = (raw.amazon ?? {}) as Record<string, unknown>;
+
   return {
     personal_access_token: raw.personal_access_token,
     budget_id: raw.budget_id,
     db_path: (raw.db_path as string).replace('~', homedir()),
     include_hidden_categories: (raw.include_hidden_categories as boolean) ?? false,
     sort,
+    amazon: {
+      enabled: (rawAmazon.enabled as boolean) ?? false,
+      match_window_days: (rawAmazon.match_window_days as number) ?? 7,
+      bootstrap_days: (rawAmazon.bootstrap_days as number) ?? 90,
+      payee_pattern: (rawAmazon.payee_pattern as string) ?? 'amazon|amzn',
+      stale_warning_hours: (rawAmazon.stale_warning_hours as number) ?? 24,
+    },
   };
 }
 
