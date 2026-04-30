@@ -13,18 +13,25 @@ import { ErrorBanner } from './ErrorBanner.js';
 import { WriteStatus } from './WriteStatus.js';
 import { WriteManager } from '../write-manager.js';
 import { getUnapprovedTransactions } from '../db/transactions.js';
-import { getCategories, getCategoriesGrouped } from '../db/categories.js';
+import { getCategories, getCategoriesGrouped, type CategoryRow } from '../db/categories.js';
 import { getPayeeHistory } from '../db/history.js';
+
+// Hardcoded name of the YNAB category used by the `w` keybind to mark a
+// transaction as having an unknown / to-be-reviewed category. Resolved once
+// at startup in run.ts; missing-category causes the app to exit before the
+// TUI mounts.
+export const WRONG_CATEGORY_NAME = '\u{1F4B5} Wrong Category';
 
 interface Props {
   db: Database.Database;
   api: ynab.API;
   config: Config;
+  wrongCategory: CategoryRow;
 }
 
 // Root App component. Owns all state via useReducer.
 // Wires WriteManager calls to keybindings and dispatches state transitions.
-export function App({ db, api, config }: Props) {
+export function App({ db, api, config, wrongCategory }: Props) {
   const [state, dispatch] = useReducer(reducer, initialState);
   const { exit } = useApp();
 
@@ -76,6 +83,7 @@ export function App({ db, api, config }: Props) {
     if (input === 'c') dispatch({ type: 'SET_MODE', mode: 'picker' });
     if (input === 'n') dispatch({ type: 'NEXT' });
     if (input === 's') dispatch({ type: 'NEXT' });
+    if (input === 'w') fireWrite(() => manager.approve(currentTx.id, wrongCategory.id));
     if (input === 'x') fireWrite(() => manager.flagForSplit(currentTx.id));
     if (input === 'm') dispatch({ type: 'SET_MODE', mode: 'memo' });
     if (input === 'u' && state.history.length > 0) dispatch({ type: 'POP_HISTORY' });

@@ -63,6 +63,7 @@ export function DefaultMode({ transaction, history, categories, suggestedCategor
             <Text dimColor>[y/↵] approve (pick category first)</Text>
           )}
           <Text>[n] next (no change)</Text>
+          <Text>[w] wrong category</Text>
           <Text>[x] flag for split</Text>
           <Text>[u] undo last</Text>
         </Box>

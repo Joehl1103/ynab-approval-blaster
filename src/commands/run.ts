@@ -7,7 +7,8 @@ import { createYnabClient } from '../ynab.js';
 import { listInflight } from '../db/inflight.js';
 import { replayInflightWrites } from '../replay.js';
 import { syncFromYnab } from '../sync.js';
-import { App } from '../tui/App.js';
+import { App, WRONG_CATEGORY_NAME } from '../tui/App.js';
+import { getCategoryByName } from '../db/categories.js';
 import { createInterface } from 'readline';
 
 // Prompts user with a yes/no question. Returns true if they answer 'y'.
@@ -45,6 +46,17 @@ export async function runBlaster(): Promise<void> {
   await syncFromYnab(db, api, config);
   process.stdout.write(' done.\n');
 
+  // Resolve the "Wrong Category" target up front so the `w` keybind can fire
+  // without re-querying. Fail fast if the category is missing from the budget.
+  const wrongCategory = getCategoryByName(db, WRONG_CATEGORY_NAME);
+  if (!wrongCategory) {
+    console.error(
+      `Error: required category "${WRONG_CATEGORY_NAME}" was not found in your budget. ` +
+        `Create it in YNAB and re-run.`
+    );
+    process.exit(1);
+  }
+
   // Mount the Ink TUI.
-  render(React.createElement(App, { db, api, config }));
+  render(React.createElement(App, { db, api, config, wrongCategory }));
 }
