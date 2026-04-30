@@ -66,7 +66,7 @@ export function DefaultMode({ transaction, history, categories, suggestedCategor
           {transaction.category_id ? (
             <Text>[a] approve as-is (<Text bold>{transaction.category_name ?? 'current'}</Text>)</Text>
           ) : (
-            <Text dimColor>[a] approve as-is (no category set)</Text>
+            <Text>[a] approve as-is (<Text dimColor>no category — YNAB-handled</Text>)</Text>
           )}
           <Text>[n] next (no change)</Text>
           <Text>[w] wrong category</Text>

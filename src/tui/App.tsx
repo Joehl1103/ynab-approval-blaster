@@ -80,7 +80,7 @@ export function App({ db, api, config, wrongCategory }: Props) {
     if ((input === 'y' || key.return) && suggestedCategory && currentTx.amount <= 0) {
       fireWrite(() => manager.approve(currentTx.id, suggestedCategory.id));
     }
-    if (input === 'a' && currentTx.category_id) {
+    if (input === 'a') {
       fireWrite(() => manager.approveAsIs(currentTx.id));
     }
     if (input === 'c') dispatch({ type: 'SET_MODE', mode: 'picker' });

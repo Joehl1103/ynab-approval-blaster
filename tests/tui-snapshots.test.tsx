@@ -146,6 +146,21 @@ describe('TUI snapshots', () => {
     expect(lastFrame()).toContain('Groceries');
   });
 
+  it('DefaultMode still advertises [a] approve-as-is when category_id is null (e.g. transfers / CC payments)', () => {
+    const txWithoutCategory: TransactionRow = { ...tx, category_id: null, category_name: null };
+    const { lastFrame } = render(
+      React.createElement(DefaultMode, {
+        transaction: txWithoutCategory,
+        history: [],
+        categories,
+        suggestedCategoryName: null,
+        writeStatus: 'idle',
+      })
+    );
+    expect(lastFrame()).toContain('[a] approve as-is');
+    expect(lastFrame()).toContain('YNAB-handled');
+  });
+
   it('Footer legend includes the [a] as-is keybind', () => {
     const { lastFrame } = render(React.createElement(Footer));
     expect(lastFrame()).toContain('[a] as-is');
