@@ -6,7 +6,7 @@ export function Footer() {
   return (
     <Box flexDirection="column" marginTop={1} borderStyle="single" borderColor="gray">
       <Text dimColor>
-        [y/↵] approve  [c] category  [n] next  [s] skip  [w] wrong cat  [x] flag split  [m] memo  [u] undo  [q] quit
+        [y/↵] approve  [c] category  [n] next  [s] skip  [w] wrong cat  [x] flag split  [m] memo  [r] receipt  [u] undo  [q] quit
       </Text>
     </Box>
   );

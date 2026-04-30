@@ -1,7 +1,22 @@
 import type { TransactionRow } from '../db/transactions.js';
+import type { ParsedReceipt, ReceiptSuggestion } from '../receipt/types.js';
 
-export type Mode = 'default' | 'picker' | 'memo';
+export type Mode = 'default' | 'picker' | 'memo' | 'receipt';
 export type WriteStatus = 'idle' | 'saving' | 'saved' | 'failed';
+
+export type ReceiptStage =
+  | 'capturing'
+  | 'ocr'
+  | 'analyzing'
+  | 'review'
+  | 'error';
+
+export interface ReceiptState {
+  stage: ReceiptStage;
+  parsed: ParsedReceipt | null;
+  suggestion: ReceiptSuggestion | null;
+  error: string | null;
+}
 
 export interface AppState {
   queue: TransactionRow[];
@@ -10,6 +25,7 @@ export interface AppState {
   errors: string[];
   writeStatus: WriteStatus;
   history: TransactionRow[];
+  receipt: ReceiptState | null;
 }
 
 export const initialState: AppState = {
@@ -19,6 +35,7 @@ export const initialState: AppState = {
   errors: [],
   writeStatus: 'idle',
   history: [],
+  receipt: null,
 };
 
 export type Action =
@@ -29,7 +46,12 @@ export type Action =
   | { type: 'DISMISS_ERROR' }
   | { type: 'SET_WRITE_STATUS'; status: WriteStatus }
   | { type: 'PUSH_HISTORY'; snapshot: TransactionRow }
-  | { type: 'POP_HISTORY' };
+  | { type: 'POP_HISTORY' }
+  | { type: 'RECEIPT_START' }
+  | { type: 'RECEIPT_PROGRESS'; stage: ReceiptStage }
+  | { type: 'RECEIPT_RESULT'; parsed: ParsedReceipt; suggestion: ReceiptSuggestion }
+  | { type: 'RECEIPT_FAIL'; error: string }
+  | { type: 'RECEIPT_CLOSE' };
 
 export function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -64,6 +86,44 @@ export function reducer(state: AppState, action: Action): AppState {
         history: state.history.slice(0, -1),
         index: Math.max(0, state.index - 1),
       };
+
+    case 'RECEIPT_START':
+      return {
+        ...state,
+        mode: 'receipt',
+        receipt: { stage: 'capturing', parsed: null, suggestion: null, error: null },
+      };
+
+    case 'RECEIPT_PROGRESS':
+      if (!state.receipt) return state;
+      return { ...state, receipt: { ...state.receipt, stage: action.stage } };
+
+    case 'RECEIPT_RESULT':
+      return {
+        ...state,
+        mode: 'receipt',
+        receipt: {
+          stage: 'review',
+          parsed: action.parsed,
+          suggestion: action.suggestion,
+          error: null,
+        },
+      };
+
+    case 'RECEIPT_FAIL':
+      return {
+        ...state,
+        mode: 'receipt',
+        receipt: {
+          stage: 'error',
+          parsed: state.receipt?.parsed ?? null,
+          suggestion: state.receipt?.suggestion ?? null,
+          error: action.error,
+        },
+      };
+
+    case 'RECEIPT_CLOSE':
+      return { ...state, mode: 'default', receipt: null };
 
     default:
       return state;

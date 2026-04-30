@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "tsc",
-    "postbuild": "chmod +x dist/cli.js",
+    "postbuild": "chmod +x dist/cli.js && mkdir -p dist/native && cp src/native/ocr.swift dist/native/ocr.swift",
     "install-local": "npm run build && npm link",
     "dev": "tsx src/cli.ts",
     "test": "vitest run",

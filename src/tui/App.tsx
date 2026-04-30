@@ -1,4 +1,5 @@
 import React, { useReducer, useEffect } from 'react';
+import { unlink } from 'fs/promises';
 import { Box, Text, useInput, useApp } from 'ink';
 import type Database from 'better-sqlite3';
 import type * as ynab from 'ynab';
@@ -9,12 +10,17 @@ import { Footer } from './Footer.js';
 import { DefaultMode } from './DefaultMode.js';
 import { CategoryPicker } from './CategoryPicker.js';
 import { MemoEditor } from './MemoEditor.js';
+import { ReceiptMode } from './ReceiptMode.js';
 import { ErrorBanner } from './ErrorBanner.js';
 import { WriteStatus } from './WriteStatus.js';
 import { WriteManager } from '../write-manager.js';
 import { getUnapprovedTransactions } from '../db/transactions.js';
 import { getCategories, getCategoriesGrouped, type CategoryRow } from '../db/categories.js';
 import { getPayeeHistory } from '../db/history.js';
+import { captureReceipt } from '../receipt/capture.js';
+import { runOcr } from '../receipt/ocr.js';
+import { parseReceipt } from '../receipt/parse.js';
+import { suggestFromReceipt } from '../receipt/suggest.js';
 
 // Hardcoded name of the YNAB category used by the `w` keybind to mark a
 // transaction as having an unknown / to-be-reviewed category. Resolved once
@@ -69,7 +75,62 @@ export function App({ db, api, config, wrongCategory }: Props) {
     }
   };
 
+  // Drives the capture -> OCR -> parse -> suggest pipeline. Each stage emits
+  // a progress dispatch so the TUI shows the right spinner. Temp image is
+  // unlinked best-effort regardless of outcome — we don't persist anything.
+  const fireReceiptScan = async () => {
+    if (!currentTx || !config.receipt) return;
+    dispatch({ type: 'RECEIPT_START' });
+    let imagePath: string | null = null;
+    try {
+      imagePath = await captureReceipt({
+        shortcutName: config.receipt.shortcut_name,
+        tempDir: config.receipt.temp_dir,
+      });
+      dispatch({ type: 'RECEIPT_PROGRESS', stage: 'ocr' });
+      const lines = await runOcr(imagePath);
+      dispatch({ type: 'RECEIPT_PROGRESS', stage: 'analyzing' });
+      const parsed = parseReceipt(lines);
+      const suggestion = suggestFromReceipt({
+        parsed,
+        transaction: currentTx,
+        categories,
+        history: payeeHistory,
+        keywordMap: config.receipt.keyword_map,
+      });
+      dispatch({ type: 'RECEIPT_RESULT', parsed, suggestion });
+    } catch (err) {
+      dispatch({ type: 'RECEIPT_FAIL', error: (err as Error).message });
+    } finally {
+      if (imagePath) {
+        unlink(imagePath).catch(() => {
+          // Discarded by design — log nothing, leak nothing.
+        });
+      }
+    }
+  };
+
   useInput((input, key) => {
+    if (state.mode === 'receipt') {
+      if (key.escape) {
+        dispatch({ type: 'RECEIPT_CLOSE' });
+        return;
+      }
+      if (state.receipt?.stage === 'review') {
+        if (!currentTx) return;
+        const sug = state.receipt.suggestion;
+        if ((input === 'y' || key.return) && sug?.category_id) {
+          dispatch({ type: 'RECEIPT_CLOSE' });
+          fireWrite(() => manager.approve(currentTx.id, sug.category_id!));
+        }
+        if (input === 'c') dispatch({ type: 'SET_MODE', mode: 'picker' });
+      }
+      if (state.receipt?.stage === 'error' && input === 'r') {
+        fireReceiptScan();
+      }
+      return;
+    }
+
     if (state.mode !== 'default') return;
 
     if (input === 'q') exit();
@@ -86,11 +147,13 @@ export function App({ db, api, config, wrongCategory }: Props) {
     if (input === 'w') fireWrite(() => manager.approve(currentTx.id, wrongCategory.id));
     if (input === 'x') fireWrite(() => manager.flagForSplit(currentTx.id));
     if (input === 'm') dispatch({ type: 'SET_MODE', mode: 'memo' });
+    if (input === 'r' && config.receipt?.enabled) fireReceiptScan();
     if (input === 'u' && state.history.length > 0) dispatch({ type: 'POP_HISTORY' });
   });
 
   const handleCategorySelect = (categoryId: string, categoryName: string) => {
     if (!currentTx) return;
+    if (state.receipt) dispatch({ type: 'RECEIPT_CLOSE' });
     dispatch({ type: 'SET_MODE', mode: 'default' });
     fireWrite(() => manager.approve(currentTx.id, categoryId));
   };
@@ -132,7 +195,13 @@ export function App({ db, api, config, wrongCategory }: Props) {
         <CategoryPicker
           groups={categoryGroups}
           onSelect={handleCategorySelect}
-          onCancel={() => dispatch({ type: 'SET_MODE', mode: 'default' })}
+          onCancel={() => {
+            if (state.receipt) {
+              dispatch({ type: 'SET_MODE', mode: 'receipt' });
+            } else {
+              dispatch({ type: 'SET_MODE', mode: 'default' });
+            }
+          }}
         />
       )}
 
@@ -142,6 +211,10 @@ export function App({ db, api, config, wrongCategory }: Props) {
           onSubmit={handleMemoSubmit}
           onCancel={() => dispatch({ type: 'SET_MODE', mode: 'default' })}
         />
+      )}
+
+      {state.mode === 'receipt' && state.receipt && (
+        <ReceiptMode state={state.receipt} transaction={currentTx} />
       )}
 
       <Box justifyContent="space-between">

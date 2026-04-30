@@ -7,9 +7,11 @@ import { WriteStatus } from '../src/tui/WriteStatus.js';
 import { ErrorBanner } from '../src/tui/ErrorBanner.js';
 import { DefaultMode } from '../src/tui/DefaultMode.js';
 import { CategoryPicker } from '../src/tui/CategoryPicker.js';
+import { ReceiptMode } from '../src/tui/ReceiptMode.js';
 import type { TransactionRow } from '../src/db/transactions.js';
 import type { HistoryRow } from '../src/db/history.js';
 import type { CategoryGroup, CategoryRow } from '../src/db/categories.js';
+import type { ReceiptState } from '../src/tui/reducer.js';
 
 const tx: TransactionRow = {
   id: 'tx1',
@@ -144,5 +146,92 @@ describe('TUI snapshots', () => {
       })
     );
     expect(lastFrame()).toContain('No matching categories');
+  });
+
+  it('Footer legend includes the [r] receipt keybind', () => {
+    // The legend is wider than typical narrow terminals so Ink may wrap mid-
+    // label on space; assert each side of the label independently.
+    const { lastFrame } = render(React.createElement(Footer));
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain('[r]');
+    expect(frame).toContain('receipt');
+  });
+
+  it('DefaultMode advertises the [r] scan-receipt keybind', () => {
+    const { lastFrame } = render(
+      React.createElement(DefaultMode, {
+        transaction: tx,
+        history,
+        categories,
+        suggestedCategoryName: 'Groceries',
+        writeStatus: 'idle',
+      })
+    );
+    expect(lastFrame()).toContain('[r] scan receipt');
+  });
+
+  it('ReceiptMode renders the capturing-stage spinner', () => {
+    const state: ReceiptState = {
+      stage: 'capturing',
+      parsed: null,
+      suggestion: null,
+      error: null,
+    };
+    const { lastFrame } = render(
+      React.createElement(ReceiptMode, { state, transaction: tx })
+    );
+    expect(lastFrame()).toContain('iPhone capture');
+  });
+
+  it('ReceiptMode renders the review panel with merchant, total, and suggestion', () => {
+    const state: ReceiptState = {
+      stage: 'review',
+      parsed: {
+        merchant: 'TARGET',
+        date: '2026-04-15',
+        total_milliunits: -84220,
+        items: [
+          { description: 'MILK 2%', amount_milliunits: -3990 },
+          { description: 'BREAD', amount_milliunits: -4490 },
+        ],
+        raw_lines: ['TARGET'],
+      },
+      suggestion: {
+        category_id: 'c1',
+        category_name: 'Groceries',
+        reason: { kind: 'payee_history', pct: 64, count: 26 },
+        total_mismatch: false,
+        total_diff_milliunits: 0,
+        merchant_match: 'matches',
+        date_match: 'matches',
+      },
+      error: null,
+    };
+    const { lastFrame } = render(
+      React.createElement(ReceiptMode, { state, transaction: tx })
+    );
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain('TARGET');
+    expect(frame).toContain('-$84.22');
+    expect(frame).toContain('Suggested:');
+    expect(frame).toContain('Groceries');
+    expect(frame).toContain('payee history');
+    expect(frame).toContain('MILK 2%');
+  });
+
+  it('ReceiptMode renders the error stage with retry hint', () => {
+    const state: ReceiptState = {
+      stage: 'error',
+      parsed: null,
+      suggestion: null,
+      error: 'Shortcut "ynab-blaster-receipt" not found.',
+    };
+    const { lastFrame } = render(
+      React.createElement(ReceiptMode, { state, transaction: tx })
+    );
+    const frame = lastFrame() ?? '';
+    expect(frame).toContain('Receipt scan failed');
+    expect(frame).toContain('not found');
+    expect(frame).toContain('[r] retry');
   });
 });

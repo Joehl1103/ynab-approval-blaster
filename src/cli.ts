@@ -40,6 +40,14 @@ program
     await runRetryInflight();
   });
 
+program
+  .command('install-shortcut')
+  .description('Open or print steps for installing the Continuity Camera shortcut used by [r]')
+  .action(async () => {
+    const { runInstallShortcut } = await import('./commands/install-shortcut.js');
+    await runInstallShortcut();
+  });
+
 // Default command (no subcommand) — runs the TUI blaster.
 program
   .command('run', { isDefault: true, hidden: true })
