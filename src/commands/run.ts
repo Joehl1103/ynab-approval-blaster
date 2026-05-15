@@ -9,6 +9,7 @@ import { replayInflightWrites } from '../replay.js';
 import { syncFromYnab } from '../sync.js';
 import { App, WRONG_CATEGORY_NAME } from '../tui/App.js';
 import { getCategoryByName } from '../db/categories.js';
+import { runAmazonSyncSafe } from '../amazon/sync.js';
 import { createInterface } from 'readline';
 
 // Prompts user with a yes/no question. Returns true if they answer 'y'.
@@ -40,6 +41,9 @@ export async function runBlaster(): Promise<void> {
       console.log(`Replayed: ${result.succeeded} succeeded, ${result.failed} failed`);
     }
   }
+
+  // Amazon sync (non-fatal — failures warn to stderr and are recorded in meta).
+  await runAmazonSyncSafe(db, config.amazon);
 
   // Sync latest data from YNAB.
   process.stdout.write('Syncing...');

@@ -13,6 +13,8 @@ YNAB Blaster is a terminal CLI tool that lets you rapidly approve, recategorize,
 - **`sync`** — Fetches transactions, categories, and payees from YNAB into a local SQLite database with delta sync (only fetches changes after the first run)
 - **`status`** — Prints unapproved transaction count, inflight writes, and last sync time
 - **`retry-inflight`** — Force-retries any writes that didn't confirm in a previous session (crash recovery)
+- **`amazon-login`** — Opens a real browser window and persists an authenticated Amazon session for future syncs
+- **`amazon-sync`** — Pulls Amazon order history (charges + line items) so the TUI can display matching items inline when you land on an Amazon transaction. Multi-item orders are flagged for split.
 - **Write path with crash safety** — Every write (approve, recategorize, memo, flag) is journaled in `inflight_writes` before the API call. On failure, the local change is rolled back; on crash, the journal survives and can be replayed at startup or via `retry-inflight`
 
 ### TUI Keybindings
@@ -87,6 +89,45 @@ ynab-blaster retry-inflight
 ```
 
 Replays any writes that survived a crash or network failure from a previous session. Safe to run any time — YNAB accepts duplicate PATCHes idempotently.
+### Bootstrap Amazon browser session
+
+```bash
+ynab-blaster amazon-login
+```
+
+Opens a real browser window, waits for you to complete the Amazon sign-in flow, then saves a persisted session cookie jar for future `amazon-sync` runs. This is the most reliable setup when Amazon blocks non-browser logins with a JavaScript challenge.
+
+### Amazon order matching
+
+When enabled, ynab-blaster shells out to the [`amazon-orders`](https://github.com/alexdlaird/amazon-orders) Python CLI to pull recent Amazon transactions + order line-items into your local DB. The TUI shows matched items inline when you land on an Amazon charge.
+
+#### Setup
+
+```bash
+# 1. Install the Python tool via pipx (use Python 3.12 — pillow wheels lag on 3.13/3.14)
+pipx install --python /opt/homebrew/bin/python3.12 amazon-orders
+
+# 2. Provide credentials. Either export them in your shell, or copy .env.example
+#    to ~/.config/ynab-blaster/amazon.env and fill in the values.
+export AMAZON_USERNAME="you@example.com"
+export AMAZON_PASSWORD="..."
+# Optional, only if you have authenticator-app 2FA enabled:
+export AMAZON_OTP_SECRET_KEY="JBSWY3DPEHPK3PXP"
+
+#    If Amazon blocks direct logins with a JavaScript challenge, you can skip
+#    the env credentials entirely and bootstrap a browser-backed session instead:
+ynab-blaster amazon-login
+
+# 3. Enable the feature in ~/.config/ynab-blaster/config.yml:
+#    amazon:
+#      enabled: true
+#      bootstrap_days: 90
+
+# 4. Bootstrap the local cache (90-day pull on first run):
+ynab-blaster amazon-sync
+```
+
+After the first run, `ynab-blaster` (default), `ynab-blaster sync`, and `ynab-blaster amazon-sync` all incrementally re-pull only the days since the last successful sync (auto-sync failures are non-fatal — the TUI still launches with whatever is cached). If direct credential login is blocked, run `ynab-blaster amazon-login` once to persist a browser-backed session, then retry.
 
 ## Configuration
 
@@ -98,6 +139,14 @@ budget_id: your-budget-uuid
 db_path: ~/.local/share/ynab-blaster/ynab.db
 include_hidden_categories: false
 sort: date_desc  # date_desc | date_asc | account
+
+# Optional. All keys default to the values shown if omitted.
+amazon:
+  enabled: false             # Set to true after running `pipx install amazon-orders`
+  match_window_days: 7       # +/- N days when pairing a YNAB tx with an Amazon charge
+  bootstrap_days: 90         # Window used on the very first amazon-sync
+  payee_pattern: amazon|amzn # Case-insensitive regex; payees not matching are skipped
+  stale_warning_hours: 24    # Header chip turns yellow after this many hours
 ```
 
 ## Architecture

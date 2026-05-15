@@ -3,6 +3,7 @@ import { openDatabase } from '../db/client.js';
 import { applySchema } from '../db/schema.js';
 import { createYnabClient } from '../ynab.js';
 import { syncFromYnab } from '../sync.js';
+import { runAmazonSyncSafe } from '../amazon/sync.js';
 
 // `ynab-blaster sync` — syncs from YNAB and prints a summary. No TUI.
 export async function runSync(): Promise<void> {
@@ -10,6 +11,9 @@ export async function runSync(): Promise<void> {
   const db = openDatabase(config.db_path);
   applySchema(db);
   const api = createYnabClient(config);
+
+  // Amazon sync (non-fatal).
+  await runAmazonSyncSafe(db, config.amazon);
 
   console.log('Syncing from YNAB...');
   const result = await syncFromYnab(db, api, config);

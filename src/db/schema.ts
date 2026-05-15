@@ -59,6 +59,62 @@ export function applySchema(db: Database.Database): void {
     );
   `);
 
+  db.exec(`
+    -- One row per Amazon transaction (credit-card-level charge).
+    -- Amazon transactions map 1:1 with YNAB transactions because they are
+    -- the actual card charge events (vs orders, which can split into multiple
+    -- charges for split shipments).
+    CREATE TABLE IF NOT EXISTS amazon_charges (
+      order_number     TEXT NOT NULL,
+      completed_date   TEXT NOT NULL,            -- ISO yyyy-mm-dd
+      total_milliunits INTEGER NOT NULL,         -- YNAB-signed: outflow negative, refund positive
+      is_refund        INTEGER NOT NULL,         -- 0 or 1
+      payment_method   TEXT,
+      seller           TEXT,
+      raw_json         TEXT,
+      fetched_at       TEXT NOT NULL,
+      PRIMARY KEY (order_number, completed_date, total_milliunits)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_amazon_charges_match
+      ON amazon_charges(total_milliunits, completed_date);
+
+    -- One row per ordered item, linked to charges via order_number.
+    -- Item title and asin (here, derived position) form a unique key per order.
+    CREATE TABLE IF NOT EXISTS amazon_items (
+      id              INTEGER PRIMARY KEY AUTOINCREMENT,
+      order_number    TEXT NOT NULL,
+      title           TEXT NOT NULL,
+      quantity        INTEGER NOT NULL,
+      price_milliunits INTEGER,                  -- nullable; some items lack a price
+      UNIQUE (order_number, title)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_amazon_items_order
+      ON amazon_items(order_number);
+  `);
+
+  // Migrate pre-existing amazon_items tables that used the old column layout
+  // (order_id, shipment_date, asin) to the current schema (order_number, title,
+  // quantity, price_milliunits). The table is ephemeral (re-fetched each sync),
+  // so dropping and recreating is safe.
+  const itemCols = db.prepare(`PRAGMA table_info(amazon_items)`).all() as { name: string }[];
+  if (itemCols.length > 0 && !itemCols.some((c) => c.name === 'order_number')) {
+    db.exec(`DROP TABLE amazon_items`);
+    db.exec(`
+      CREATE TABLE amazon_items (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_number    TEXT NOT NULL,
+        title           TEXT NOT NULL,
+        quantity        INTEGER NOT NULL,
+        price_milliunits INTEGER,
+        UNIQUE (order_number, title)
+      );
+      CREATE INDEX IF NOT EXISTS idx_amazon_items_order
+        ON amazon_items(order_number);
+    `);
+  }
+
   // Migrate pre-existing DBs that were created before the `balance` column existed.
   const columns = db.prepare(`PRAGMA table_info(categories)`).all() as { name: string }[];
   if (!columns.some((c) => c.name === 'balance')) {
