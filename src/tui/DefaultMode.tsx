@@ -71,6 +71,7 @@ export function DefaultMode({ transaction, history, categories, suggestedCategor
           <Text>[n] next (no change)</Text>
           <Text>[w] wrong category</Text>
           <Text>[x] flag for split</Text>
+          <Text>[r] scan receipt</Text>
           <Text>[u] undo last</Text>
         </Box>
         <Box flexDirection="column">
