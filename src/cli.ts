@@ -41,6 +41,14 @@ program
   });
 
 program
+  .command('amazon-login')
+  .description('Open a browser and persist an authenticated Amazon session for amazon-sync')
+  .action(async () => {
+    const { runAmazonLoginCommand } = await import('./commands/amazon-login.js');
+    await runAmazonLoginCommand();
+  });
+
+program
   .command('amazon-sync')
   .description('Sync Amazon order history (uses bootstrap window on first run)')
   .option('--days <n>', 'Override sync window to the last N days', (v) => parseInt(v, 10))

@@ -94,6 +94,27 @@ export function applySchema(db: Database.Database): void {
       ON amazon_items(order_number);
   `);
 
+  // Migrate pre-existing amazon_items tables that used the old column layout
+  // (order_id, shipment_date, asin) to the current schema (order_number, title,
+  // quantity, price_milliunits). The table is ephemeral (re-fetched each sync),
+  // so dropping and recreating is safe.
+  const itemCols = db.prepare(`PRAGMA table_info(amazon_items)`).all() as { name: string }[];
+  if (itemCols.length > 0 && !itemCols.some((c) => c.name === 'order_number')) {
+    db.exec(`DROP TABLE amazon_items`);
+    db.exec(`
+      CREATE TABLE amazon_items (
+        id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        order_number    TEXT NOT NULL,
+        title           TEXT NOT NULL,
+        quantity        INTEGER NOT NULL,
+        price_milliunits INTEGER,
+        UNIQUE (order_number, title)
+      );
+      CREATE INDEX IF NOT EXISTS idx_amazon_items_order
+        ON amazon_items(order_number);
+    `);
+  }
+
   // Migrate pre-existing DBs that were created before the `balance` column existed.
   const columns = db.prepare(`PRAGMA table_info(categories)`).all() as { name: string }[];
   if (!columns.some((c) => c.name === 'balance')) {

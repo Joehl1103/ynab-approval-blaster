@@ -25,10 +25,11 @@ beforeEach(() => {
   process.env.AMAZON_PASSWORD = 'pw';
 });
 
-// Builds a fake ChildProcess that writes the given stdout payload then exits 0.
-function fakeChild(stdout: string, exitCode = 0): EventEmitter {
-  const child = new EventEmitter() as EventEmitter & { stdout: Readable };
+// Builds a fake ChildProcess that writes the given stdout/stderr payloads then exits.
+function fakeChild(stdout: string, exitCode = 0, stderr = ''): EventEmitter {
+  const child = new EventEmitter() as EventEmitter & { stdout: Readable; stderr: Readable };
   child.stdout = Readable.from([Buffer.from(stdout, 'utf8')]);
+  child.stderr = Readable.from([Buffer.from(stderr, 'utf8')]);
   setImmediate(() => child.emit('close', exitCode));
   return child;
 }
@@ -93,6 +94,21 @@ describe('runAmazonSync', () => {
 
     const { runAmazonSync } = await import('../src/amazon/sync.js');
     await expect(runAmazonSync(db, config, { overrideDays: 30 })).rejects.toThrow(/exited with code 2/);
+  });
+
+  it('includes python stderr in the thrown error when export fails', async () => {
+    vi.doMock('child_process', () => ({
+      spawn: () => fakeChild('', 1, 'error: Amazon blocked login'),
+    }));
+    vi.doMock('../src/amazon/client.js', async (importOriginal) => {
+      const mod = await importOriginal<typeof import('../src/amazon/client.js')>();
+      return { ...mod, resolvePython: () => '/usr/bin/python3' };
+    });
+
+    const { runAmazonSync } = await import('../src/amazon/sync.js');
+    await expect(runAmazonSync(db, config, { overrideDays: 30 })).rejects.toThrow(
+      /Amazon blocked login/
+    );
   });
 
   it('runAmazonSyncSafe swallows errors and records them in meta', async () => {

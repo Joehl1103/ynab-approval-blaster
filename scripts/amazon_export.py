@@ -80,18 +80,12 @@ def main() -> int:
     parser.add_argument("--skip-orders", action="store_true", help="Skip the orders/items pass (transactions only)")
     args = parser.parse_args()
 
-    username = os.environ.get("AMAZON_USERNAME") or os.environ.get("AMAZON_EMAIL")
-    password = os.environ.get("AMAZON_PASSWORD")
-
-    if not username or not password:
-        print("error: AMAZON_USERNAME (or AMAZON_EMAIL) and AMAZON_PASSWORD must be set in env", file=sys.stderr)
-        return 1
-
     # Map AMAZON_OTP_SECRET → AMAZON_OTP_SECRET_KEY (the env var amazon-orders looks for).
     if os.environ.get("AMAZON_OTP_SECRET") and not os.environ.get("AMAZON_OTP_SECRET_KEY"):
         os.environ["AMAZON_OTP_SECRET_KEY"] = os.environ["AMAZON_OTP_SECRET"]
 
     try:
+        from amazonorders.exception import AmazonOrdersAuthError, AmazonOrdersAuthRedirectError, AmazonOrdersError
         from amazonorders.session import AmazonSession
         from amazonorders.orders import AmazonOrders
         from amazonorders.transactions import AmazonTransactions
@@ -99,30 +93,66 @@ def main() -> int:
         print(f"error: amazon-orders not installed in this Python env: {e}", file=sys.stderr)
         print("Install with: pipx install amazon-orders --python /opt/homebrew/bin/python3.12", file=sys.stderr)
         return 2
+    username = os.environ.get("AMAZON_USERNAME") or os.environ.get("AMAZON_EMAIL")
+    password = os.environ.get("AMAZON_PASSWORD")
 
-    print("Logging in to Amazon...", file=sys.stderr)
-    session = AmazonSession(username, password)
-    session.login()
+    try:
+        session = AmazonSession(username, password)
+        if session.auth_cookies_stored():
+            print("Using persisted Amazon session...", file=sys.stderr)
+            session.is_authenticated = True
+        else:
+            if not username or not password:
+                print(
+                    "error: no persisted Amazon session found. Either set AMAZON_USERNAME (or AMAZON_EMAIL) and AMAZON_PASSWORD, "
+                    "or run `ynab-blaster amazon-login` to create a browser-backed session.",
+                    file=sys.stderr,
+                )
+                return 1
 
-    print(f"Fetching transactions (last {args.days} days)...", file=sys.stderr)
-    txns = AmazonTransactions(session)
-    transactions_out: list[dict[str, Any]] = []
-    for t in txns.get_transactions(days=args.days):
-        transactions_out.append(_serialize_transaction(t))
+            print("Logging in to Amazon...", file=sys.stderr)
+            session.login()
 
-    orders_out: list[dict[str, Any]] = []
-    if not args.skip_orders:
-        time_filter = _resolve_time_filter(args.days)
-        print(f"Fetching orders (time_filter={time_filter})...", file=sys.stderr)
-        orders_api = AmazonOrders(session)
-        for o in orders_api.get_order_history(time_filter=time_filter, full_details=False):
-            orders_out.append(_serialize_order(o))
+        print(f"Fetching transactions (last {args.days} days)...", file=sys.stderr)
+        txns = AmazonTransactions(session)
+        transactions_out: list[dict[str, Any]] = []
+        for t in txns.get_transactions(days=args.days):
+            transactions_out.append(_serialize_transaction(t))
 
-    print(json.dumps({
-        "transactions": transactions_out,
-        "orders": orders_out,
-    }))
-    return 0
+        orders_out: list[dict[str, Any]] = []
+        if not args.skip_orders:
+            time_filter = _resolve_time_filter(args.days)
+            print(f"Fetching orders (time_filter={time_filter})...", file=sys.stderr)
+            orders_api = AmazonOrders(session)
+            for o in orders_api.get_order_history(time_filter=time_filter, full_details=False):
+                orders_out.append(_serialize_order(o))
+
+        print(json.dumps({
+            "transactions": transactions_out,
+            "orders": orders_out,
+        }))
+        return 0
+    except AmazonOrdersAuthRedirectError:
+        print(
+            "error: persisted Amazon session expired or was rejected by Amazon. "
+            "Run `ynab-blaster amazon-login` to refresh it, then retry.",
+            file=sys.stderr,
+        )
+        return 1
+    except AmazonOrdersAuthError as e:
+        message = str(e)
+        if "JavaScript-based authentication challenge page" in message:
+            print(
+                "error: Amazon blocked the direct login flow with a JavaScript challenge. "
+                "Run `ynab-blaster amazon-login` to sign in through a real browser and persist a session, then retry `ynab-blaster amazon-sync`.",
+                file=sys.stderr,
+            )
+        else:
+            print(f"error: {message}", file=sys.stderr)
+        return 1
+    except AmazonOrdersError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":

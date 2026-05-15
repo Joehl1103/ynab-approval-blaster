@@ -10,7 +10,7 @@ import {
 } from '../db/amazon.js';
 import {
   loadAmazonEnv,
-  hasAmazonCreds,
+  hasAmazonAuthAvailable,
   resolvePython,
   getExportScriptPath,
 } from './client.js';
@@ -27,18 +27,31 @@ async function runExport(days: number): Promise<ExportPayload> {
     const child = spawn(python, [script, '--days', String(days)], {
       // Forward env so the script can read AMAZON_USERNAME / AMAZON_PASSWORD.
       env: process.env,
-      stdio: ['ignore', 'pipe', 'inherit'],
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
 
     let stdout = '';
+    let stderr = '';
     child.stdout.on('data', (chunk: Buffer) => {
       stdout += chunk.toString('utf8');
+    });
+    child.stderr.on('data', (chunk: Buffer) => {
+      const text = chunk.toString('utf8');
+      stderr += text;
+      process.stderr.write(text);
     });
 
     child.on('error', (err) => reject(err));
     child.on('close', (code) => {
       if (code !== 0) {
-        reject(new Error(`amazon_export.py exited with code ${code}`));
+        const detail = stderr.trim();
+        reject(
+          new Error(
+            detail
+              ? `amazon_export.py exited with code ${code}: ${detail}`
+              : `amazon_export.py exited with code ${code}`
+          )
+        );
         return;
       }
       try {
@@ -123,7 +136,7 @@ export async function runAmazonSyncSafe(
   config: AmazonConfig
 ): Promise<AmazonSyncResult | null> {
   loadAmazonEnv();
-  if (!config.enabled || !hasAmazonCreds()) return null;
+  if (!config.enabled || !hasAmazonAuthAvailable()) return null;
 
   try {
     return await runAmazonSync(db, config);

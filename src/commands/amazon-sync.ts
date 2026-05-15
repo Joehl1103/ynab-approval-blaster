@@ -1,7 +1,7 @@
 import { loadConfig } from '../config.js';
 import { openDatabase } from '../db/client.js';
 import { applySchema } from '../db/schema.js';
-import { loadAmazonEnv, hasAmazonCreds } from '../amazon/client.js';
+import { loadAmazonEnv, hasAmazonAuthAvailable } from '../amazon/client.js';
 import { runAmazonSync } from '../amazon/sync.js';
 
 // `ynab-blaster amazon-sync [--days N]` — fatal on error; useful for first-run
@@ -12,10 +12,11 @@ export async function runAmazonSyncCommand(opts: { days?: number }): Promise<voi
   applySchema(db);
 
   loadAmazonEnv();
-  if (!hasAmazonCreds()) {
+  if (!hasAmazonAuthAvailable()) {
     console.error(
-      'Amazon credentials not found. Set AMAZON_USERNAME (or AMAZON_EMAIL) and ' +
-        'AMAZON_PASSWORD in your environment, or in ~/.config/ynab-blaster/amazon.env'
+      'Amazon auth not found. Either set AMAZON_USERNAME (or AMAZON_EMAIL) and ' +
+        'AMAZON_PASSWORD in your environment / ~/.config/ynab-blaster/amazon.env, ' +
+        'or run `ynab-blaster amazon-login` to create a persisted browser session.'
     );
     process.exit(1);
   }
