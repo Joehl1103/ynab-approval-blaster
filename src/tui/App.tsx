@@ -81,6 +81,7 @@ export function App({ db, api, config, wrongCategory }: Props) {
   const fireReceiptScan = async () => {
     if (!currentTx || !config.receipt) return;
     dispatch({ type: 'RECEIPT_START' });
+    await new Promise((resolve) => setImmediate(resolve));
     let imagePath: string | null = null;
     try {
       imagePath = await captureReceipt({

@@ -180,7 +180,7 @@ describe('TUI snapshots', () => {
     const { lastFrame } = render(
       React.createElement(ReceiptMode, { state, transaction: tx })
     );
-    expect(lastFrame()).toContain('iPhone capture');
+    expect(lastFrame()).toContain('receipt capture in Shortcuts');
   });
 
   it('ReceiptMode renders the review panel with merchant, total, and suggestion', () => {

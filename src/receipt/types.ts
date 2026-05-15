@@ -1,5 +1,5 @@
 // Shared types for the receipt-scan pipeline.
-// The pipeline runs: capture (Continuity Camera shortcut) -> ocr (Swift Vision)
+// The pipeline runs: capture (Shortcuts Take Photo) -> ocr (Swift Vision)
 // -> parse (heuristic) -> suggest (payee history + keyword map).
 
 export interface ReceiptItem {

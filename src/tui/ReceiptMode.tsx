@@ -124,7 +124,7 @@ function dateLabel(status: 'matches' | 'differs' | 'unknown', txDate: string): s
 
 function StageLine({ stage }: { stage: ReceiptState['stage'] }) {
   const map: Record<ReceiptState['stage'], string> = {
-    capturing: 'Waiting for iPhone capture (open Camera on your phone or run the shortcut)…',
+    capturing: 'Waiting for receipt capture in Shortcuts…',
     ocr: 'Running OCR…',
     analyzing: 'Analyzing receipt…',
     review: '',

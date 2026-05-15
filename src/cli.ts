@@ -42,7 +42,7 @@ program
 
 program
   .command('install-shortcut')
-  .description('Open or print steps for installing the Continuity Camera shortcut used by [r]')
+  .description('Open or print steps for installing the camera shortcut used by [r]')
   .action(async () => {
     const { runInstallShortcut } = await import('./commands/install-shortcut.js');
     await runInstallShortcut();

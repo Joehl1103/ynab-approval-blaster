@@ -1,4 +1,4 @@
-import { spawn } from 'child_process';
+import { execFileSync, spawn } from 'child_process';
 import { mkdirSync, existsSync, unlinkSync, statSync } from 'fs';
 import { dirname, join } from 'path';
 import { homedir } from 'os';
@@ -25,6 +25,12 @@ function spawnP(
   });
 }
 
+function outputText(value: unknown): string {
+  if (typeof value === 'string') return value;
+  if (value instanceof Buffer) return value.toString('utf8');
+  return '';
+}
+
 // Returns true when a shortcut with the given name is installed locally.
 async function shortcutExists(name: string): Promise<boolean> {
   const { code, stdout } = await spawnP('shortcuts', ['list']);
@@ -40,9 +46,9 @@ export interface CaptureOptions {
   tempDir: string;
 }
 
-// Triggers the user's Continuity Camera shortcut and returns the path to the
-// captured image. The shortcut must be configured to take a photo (Continuity
-// source) and produce that photo as its output.
+// Triggers the user's local capture shortcut and returns the path to the
+// captured image. The shortcut must be configured to take a photo and produce
+// that photo as its output.
 //
 // Throws CaptureError with a kind discriminator so the caller can render the
 // appropriate UI hint (install the shortcut, or surface the user's cancel).
@@ -62,15 +68,18 @@ export async function captureReceipt(opts: CaptureOptions): Promise<string> {
   // Pre-clean any stale path so we can detect "shortcut produced no file".
   if (existsSync(outPath)) unlinkSync(outPath);
 
-  const { code, stderr } = await spawnP('shortcuts', [
-    'run',
-    opts.shortcutName,
-    '--output-path',
-    outPath,
-  ]);
-
-  if (code !== 0) {
-    const msg = stderr.trim() || `shortcuts run exited with ${code}`;
+  try {
+    // `shortcuts run` has proven unreliable when launched from Node via async
+    // child-process APIs inside the Ink TUI, even though the same command works
+    // from an interactive shell. Running it synchronously matches the working
+    // shell path more closely and avoids the TUI-only hang.
+    execFileSync('shortcuts', ['run', opts.shortcutName, '--output-path', outPath]);
+  } catch (err) {
+    const msg =
+      outputText((err as { stderr?: unknown }).stderr).trim() ||
+      outputText((err as { stdout?: unknown }).stdout).trim() ||
+      (err as Error).message ||
+      'shortcuts run failed';
     if (/cancel/i.test(msg)) {
       throw new CaptureError('shortcut-cancelled', 'Capture cancelled.');
     }
@@ -80,7 +89,7 @@ export async function captureReceipt(opts: CaptureOptions): Promise<string> {
   if (!existsSync(outPath) || statSync(outPath).size === 0) {
     throw new CaptureError(
       'output-missing',
-      'Shortcut completed but did not produce an image. Check the shortcut: it must end with "Stop and Output" emitting the photo.'
+      'Shortcut completed but did not produce an image. Check the shortcut: it must end with "Stop and Output" returning the photo.'
     );
   }
 
